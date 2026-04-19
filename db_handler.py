@@ -124,6 +124,7 @@ def get_filtered_items(
                 where_clause
                 + f" i_product_name {comp} '{filter_attributes.product_name}'"
             )
+            where_clause_used = True
         else:
             where_clause = (
                 where_clause
@@ -133,6 +134,7 @@ def get_filtered_items(
     if filter_attributes.brand is not None:
         if where_clause_used == False:
             where_clause = where_clause + f" i_brand {comp} '{filter_attributes.brand}'"
+            where_clause_used = True
         else:
             where_clause = (
                 where_clause + f" AND i_brand {comp} '{filter_attributes.brand}'"
@@ -143,6 +145,7 @@ def get_filtered_items(
             where_clause = (
                 where_clause + f" i_manufact {comp} '{filter_attributes.manufact}'"
             )
+            where_clause_used = True
         else:
             where_clause = (
                 where_clause + f" AND i_manufact {comp} '{filter_attributes.manufact}'"
@@ -153,6 +156,7 @@ def get_filtered_items(
             where_clause = (
                 where_clause + f" i_category {comp} '{filter_attributes.category}'"
             )
+            where_clause_used = True
         else:
             where_clause = (
                 where_clause + f" AND i_category {comp} '{filter_attributes.category}'"
@@ -161,12 +165,14 @@ def get_filtered_items(
     if min_price > 0:
         if where_clause_used == False:
             where_clause = where_clause + f" i_current_price >= {min_price}"
+            where_clause_used = True
         else:
             where_clause = where_clause + f" AND i_current_price >= {min_price}"
 
     if max_price > 0:
         if where_clause_used == False:
             where_clause = where_clause + f" i_current_price <= {max_price}"
+            where_clause_used = True
         else:
             where_clause = where_clause + f" AND i_current_price <= {max_price}"
 
@@ -174,6 +180,7 @@ def get_filtered_items(
         min_start_date = f"{min_start_year}-01-01"
         if where_clause_used == False:
             where_clause = where_clause + f" i_rec_start_date >= '{min_start_date}'"
+            where_clause_used = True
         else:
             where_clause = where_clause + f" AND i_rec_start_date >= '{min_start_date}'"
 
@@ -181,6 +188,7 @@ def get_filtered_items(
         max_start_date = f"{max_start_year + 1}-01-01"
         if where_clause_used == False:
             where_clause = where_clause + f" i_rec_start_date < '{max_start_date}'"
+            where_clause_used = True
         else:
             where_clause = where_clause + f" AND i_rec_start_date < '{max_start_date}'"
 
@@ -210,7 +218,60 @@ def get_filtered_customers(
     """
     Returns a list of Customer objects matching the filters.
     """
-    raise NotImplementedError("you must implement this function")
+    where_clause = f"WHERE"
+    where_clause_used = 0
+    comp = "LIKE" if use_patterns else "="
+    if filter_attributes.customer_id is not None:
+        if where_clause_used == False:
+            where_clause = (
+                where_clause
+                + f" c_customer_id {comp} '{filter_attributes.customer_id}'"
+            )
+            where_clause_used = True
+        else:
+            where_clause = (
+                where_clause
+                + f" AND c_customer_id {comp} '{filter_attributes.customer_id}'"
+            )
+    if filter_attributes.name is not None:
+        split_name = filter_attributes.name.split(" ")
+        first_name = split_name[0]
+        last_name = None
+        if len(split_name) > 1:
+            last_name = " ".join(split_name[1:])
+
+        if where_clause_used == False:
+            where_clause = where_clause + f" c_first_name {comp} '{first_name}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND c_first_name {comp} '{first_name}'"
+
+        if last_name:
+            where_clause = where_clause + f" AND c_last_name {comp} '{last_name}'"
+
+    if filter_attributes.email is not None:
+        if where_clause_used == False:
+            where_clause = (
+                where_clause + f" c_email_address {comp} '{filter_attributes.email}'"
+            )
+            where_clause_used = True
+        else:
+            where_clause = (
+                where_clause
+                + f" AND c_email_address {comp} '{filter_attributes.email}'"
+            )
+
+    ## need to implament address logic. Not sure how to do it yet.
+
+    query = f"SELECT * FROM Customer {where_clause};"
+    cur.execute(query)
+
+    results = []
+    for row in cur:
+        found_cust = Customer(row[1], f"{row[2]} {row[3]}", row[5], row[4])
+        results.append(found_cust)
+
+    return results
 
 
 def get_filtered_rentals(
@@ -223,7 +284,69 @@ def get_filtered_rentals(
     """
     Returns a list of Rental objects matching the filters.
     """
-    raise NotImplementedError("you must implement this function")
+    where_clause = f"WHERE"
+    where_clause_used = 0
+    comp = "="
+    if filter_attributes.item_id is not None:
+        if where_clause_used == False:
+            where_clause = (
+                where_clause + f" item_id {comp} '{filter_attributes.item_id}'"
+            )
+            where_clause_used = True
+        else:
+            where_clause = (
+                where_clause + f" AND item_id {comp} '{filter_attributes.item_id}'"
+            )
+
+    if filter_attributes.customer_id is not None:
+        if where_clause_used == False:
+            where_clause = (
+                where_clause + f" customer_id {comp} '{filter_attributes.customer_id}'"
+            )
+            where_clause_used = True
+        else:
+            where_clause = (
+                where_clause
+                + f" AND customer_id {comp} '{filter_attributes.customer_id}'"
+            )
+
+    if min_rental_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" rental_date >= '{min_rental_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND rental_date >= '{min_rental_date}'"
+
+    if max_rental_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" rental_date <= '{max_rental_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND rental_date <= '{max_rental_date}'"
+
+    if min_due_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" due_date >= '{min_due_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND due_date >= '{min_due_date}'"
+
+    if max_due_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" due_date <= '{max_due_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND due_date <= '{max_due_date}'"
+
+    query = f"SELECT * FROM Rental {where_clause};"
+    cur.execute(query)
+
+    results = []
+    for row in cur:
+        found_rental = Rental(row[0], row[1], row[2], row[3])
+        results.append(found_rental)
+
+    return results
 
 
 def get_filtered_rental_histories(
@@ -238,7 +361,83 @@ def get_filtered_rental_histories(
     """
     Returns a list of RentalHistory objects matching the filters.
     """
-    raise NotImplementedError("you must implement this function")
+    where_clause = f"WHERE"
+    where_clause_used = 0
+    comp = "="
+    if filter_attributes.item_id is not None:
+        if where_clause_used == False:
+            where_clause = (
+                where_clause + f" item_id {comp} '{filter_attributes.item_id}'"
+            )
+            where_clause_used = True
+        else:
+            where_clause = (
+                where_clause + f" AND item_id {comp} '{filter_attributes.item_id}'"
+            )
+
+    if filter_attributes.customer_id is not None:
+        if where_clause_used == False:
+            where_clause = (
+                where_clause + f" customer_id {comp} '{filter_attributes.customer_id}'"
+            )
+            where_clause_used = True
+        else:
+            where_clause = (
+                where_clause
+                + f" AND customer_id {comp} '{filter_attributes.customer_id}'"
+            )
+
+    if min_rental_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" rental_date >= '{min_rental_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND rental_date >= '{min_rental_date}'"
+
+    if max_rental_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" rental_date <= '{max_rental_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND rental_date <= '{max_rental_date}'"
+
+    if min_due_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" due_date >= '{min_due_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND due_date >= '{min_due_date}'"
+
+    if max_due_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" due_date <= '{max_due_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND due_date <= '{max_due_date}'"
+
+    if min_return_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" return_date >= '{min_return_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND return_date >= '{min_return_date}'"
+
+    if max_return_date is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" return_date <= '{max_return_date}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND return_date <= '{max_return_date}'"
+
+    query = f"SELECT * FROM rental_history {where_clause};"
+    cur.execute(query)
+
+    results = []
+    for row in cur:
+        found_rental = RentalHistory(row[0], row[1], row[2], row[3], row[4])
+        results.append(found_rental)
+
+    return results
 
 
 def get_filtered_waitlist(
@@ -249,28 +448,109 @@ def get_filtered_waitlist(
     """
     Returns a list of Waitlist objects matching the filters.
     """
-    raise NotImplementedError("you must implement this function")
+    where_clause = f"WHERE"
+    where_clause_used = 0
+    comp = "="
+    if filter_attributes.item_id is not None:
+        if where_clause_used == False:
+            where_clause = (
+                where_clause + f" item_id {comp} '{filter_attributes.item_id}'"
+            )
+            where_clause_used = True
+        else:
+            where_clause = (
+                where_clause + f" AND item_id {comp} '{filter_attributes.item_id}'"
+            )
+
+    if filter_attributes.customer_id is not None:
+        if where_clause_used == False:
+            where_clause = (
+                where_clause + f" customer_id {comp} '{filter_attributes.customer_id}'"
+            )
+            where_clause_used = True
+        else:
+            where_clause = (
+                where_clause
+                + f" AND customer_id {comp} '{filter_attributes.customer_id}'"
+            )
+
+    if min_place_in_line > 0:
+        if where_clause_used == False:
+            where_clause = where_clause + f" place_in_line >= '{min_place_in_line}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND return_date >= '{min_place_in_line}'"
+
+    if max_place_in_line > 0:
+        if where_clause_used == False:
+            where_clause = where_clause + f" place_in_line <= '{max_place_in_line}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND return_date <= '{max_place_in_line}'"
+
+    query = f"SELECT * FROM waitlist {where_clause};"
+    cur.execute(query)
+
+    results = []
+    for row in cur:
+        found_rental = Waitlist(row[0], row[1], row[2])
+        results.append(found_rental)
+
+    return results
 
 
 def number_in_stock(item_id: str = None) -> int:
     """
     Returns num_owned - active rentals. Returns -1 if item doesn't exist.
     """
-    raise NotImplementedError("you must implement this function")
+
+    num_owned_query = f"SELECT i_num_owned FROM item WHERE i_item_id = '{item_id}'"
+    cur.execute(num_owned_query)
+    n_owned = cur.fetchone()[0]
+
+    num_rent_query = f"SELECT count(*) FROM rental WHERE item_id = '{item_id}'"
+    cur.execute(num_rent_query)
+    n_rented = cur.fetchone()[0]
+
+    return n_owned - n_rented
+
+
+print(number_in_stock("AAAAAAAABAAAAAAA"))
 
 
 def place_in_line(item_id: str = None, customer_id: str = None) -> int:
     """
     Returns the customer's place_in_line, or -1 if not on waitlist.
     """
-    raise NotImplementedError("you must implement this function")
+    where_clause = f"WHERE"
+    where_clause_used = 0
+    comp = "="
+    if item_id is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" item_id {comp} '{item_id}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND item_id {comp} '{item_id}'"
+
+    if customer_id is not None:
+        if where_clause_used == False:
+            where_clause = where_clause + f" customer_id {comp} '{customer_id}'"
+            where_clause_used = True
+        else:
+            where_clause = where_clause + f" AND customer_id {comp} '{customer_id}'"
+
+    query = f"SELECT place_in_line FROM waitlist {where_clause};"
+    cur.execute(query)
+    return cur.fetchone()[0]
 
 
 def line_length(item_id: str = None) -> int:
     """
     Returns how many people are on the waitlist for this item.
     """
-    raise NotImplementedError("you must implement this function")
+    query = f"SELECT COUNT(*) FROM waitlist WHERE item_id = '{item_id}'"
+    cur.execute(query)
+    return cur.fetchone()[0]
 
 
 def save_changes():
