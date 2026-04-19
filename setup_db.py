@@ -1,7 +1,7 @@
 import sys
 import random
 from mariadb import connect, ProgrammingError
-from MARIADB_CREDS import DB_CONFIG
+from MARIADB_CREDS_EXAMPLE import DB_CONFIG
 
 
 def setup_db(data_dir="tpcds_data", verbose=True, parent_cur=None, parent_conn=None):

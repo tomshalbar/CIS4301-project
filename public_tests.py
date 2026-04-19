@@ -9,7 +9,7 @@ from models.Customer import Customer
 
 
 # Fixed test IDs (16 chars each)
-TEST_ITEM_ID     = "PUBTEST_ITEM0000"
+TEST_ITEM_ID = "PUBTEST_ITEM0000"
 TEST_CUSTOMER_ID = "PUBTEST_CUST0000"
 
 
@@ -31,9 +31,13 @@ class PublicTests(TestCase):
     def _reset(self):
         self.db.cur.execute("DELETE FROM waitlist")
         self.db.cur.execute("DELETE FROM rental")
-        self.db.cur.execute("DELETE FROM rental_history WHERE item_id = ?", (TEST_ITEM_ID,))
+        self.db.cur.execute(
+            "DELETE FROM rental_history WHERE item_id = ?", (TEST_ITEM_ID,)
+        )
         self.db.cur.execute("DELETE FROM item WHERE i_item_id = ?", (TEST_ITEM_ID,))
-        self.db.cur.execute("DELETE FROM customer WHERE c_customer_id = ?", (TEST_CUSTOMER_ID,))
+        self.db.cur.execute(
+            "DELETE FROM customer WHERE c_customer_id = ?", (TEST_CUSTOMER_ID,)
+        )
         self.db.conn.commit()
 
     def setUp(self):
@@ -72,8 +76,16 @@ class PublicTests(TestCase):
             "i_brand, i_class, i_category, i_manufact, i_current_price, i_num_owned) "
             "VALUES ((SELECT COALESCE(MAX(i_item_sk), 0) + 1 FROM item AS tmp), "
             "?, ?, ?, ?, NULL, ?, ?, ?, ?)",
-            (item.item_id, f"{item.start_year}-01-01", item.product_name,
-             item.brand, item.category, item.manufact, item.current_price, item.num_owned)
+            (
+                item.item_id,
+                f"{item.start_year}-01-01",
+                item.product_name,
+                item.brand,
+                item.category,
+                item.manufact,
+                item.current_price,
+                item.num_owned,
+            ),
         )
         self.db.conn.commit()
         return item
@@ -85,7 +97,7 @@ class PublicTests(TestCase):
             "(ca_address_sk, ca_street_number, ca_street_name, ca_city, ca_state, ca_zip) "
             "VALUES ((SELECT COALESCE(MAX(ca_address_sk), 0) + 1 FROM customer_address AS tmp), "
             "?, ?, ?, ?, ?)",
-            ("5678", "Test Ave", "Gainesville", "FL", "32601")
+            ("5678", "Test Ave", "Gainesville", "FL", "32601"),
         )
         self.db.cur.execute("SELECT MAX(ca_address_sk) FROM customer_address")
         addr_sk = self.db.cur.fetchone()[0]
@@ -94,7 +106,7 @@ class PublicTests(TestCase):
             "(c_customer_sk, c_customer_id, c_first_name, c_last_name, c_email_address, c_current_addr_sk) "
             "VALUES ((SELECT COALESCE(MAX(c_customer_sk), 0) + 1 FROM customer AS tmp), "
             "?, ?, ?, ?, ?)",
-            (customer.customer_id, "Public", "Tester", customer.email, addr_sk)
+            (customer.customer_id, "Public", "Tester", customer.email, addr_sk),
         )
         self.db.conn.commit()
         return customer
@@ -111,7 +123,7 @@ class PublicTests(TestCase):
             "SELECT i_item_id, i_product_name, i_brand, i_category, i_manufact, "
             "i_current_price, YEAR(i_rec_start_date), i_num_owned "
             "FROM item WHERE i_item_id = ?",
-            (new_item.item_id,)
+            (new_item.item_id,),
         )
         row = self.db.cur.fetchone()
         self.assertIsNotNone(row)
@@ -126,7 +138,7 @@ class PublicTests(TestCase):
         self.db.cur.execute(
             "SELECT c_customer_id, TRIM(c_first_name), TRIM(c_last_name), TRIM(c_email_address) "
             "FROM customer WHERE c_customer_id = ?",
-            (new_customer.customer_id,)
+            (new_customer.customer_id,),
         )
         row = self.db.cur.fetchone()
         self.assertIsNotNone(row)
@@ -144,18 +156,21 @@ class PublicTests(TestCase):
             address="9999 New Rd, Tampa, FL 33601",
         )
 
-        self.db.edit_customer(original_customer_id=TEST_CUSTOMER_ID, new_customer=updated)
+        self.db.edit_customer(
+            original_customer_id=TEST_CUSTOMER_ID, new_customer=updated
+        )
 
         # Old ID gone
         self.db.cur.execute(
-            "SELECT c_customer_id FROM customer WHERE c_customer_id = ?", (TEST_CUSTOMER_ID,)
+            "SELECT c_customer_id FROM customer WHERE c_customer_id = ?",
+            (TEST_CUSTOMER_ID,),
         )
         self.assertIsNone(self.db.cur.fetchone())
 
         # New ID present
         self.db.cur.execute(
             "SELECT c_customer_id, TRIM(c_email_address) FROM customer WHERE c_customer_id = ?",
-            (updated.customer_id,)
+            (updated.customer_id,),
         )
         row = self.db.cur.fetchone()
         self.assertIsNotNone(row)
@@ -177,7 +192,7 @@ class PublicTests(TestCase):
         self.db.cur.execute(
             "SELECT item_id, customer_id, rental_date, due_date FROM rental "
             "WHERE item_id = ? AND customer_id = ?",
-            (item.item_id, customer.customer_id)
+            (item.item_id, customer.customer_id),
         )
         row = self.db.cur.fetchone()
         self.assertIsNotNone(row)
@@ -198,7 +213,7 @@ class PublicTests(TestCase):
 
         self.db.cur.execute(
             "INSERT INTO rental (item_id, customer_id, rental_date, due_date) VALUES (?, ?, ?, ?)",
-            (item.item_id, customer.customer_id, today, due)
+            (item.item_id, customer.customer_id, today, due),
         )
         self.db.conn.commit()
 
@@ -207,14 +222,14 @@ class PublicTests(TestCase):
         # Should be removed from rental
         self.db.cur.execute(
             "SELECT * FROM rental WHERE item_id = ? AND customer_id = ?",
-            (item.item_id, customer.customer_id)
+            (item.item_id, customer.customer_id),
         )
         self.assertIsNone(self.db.cur.fetchone())
 
         # Should appear in rental_history
         self.db.cur.execute(
             "SELECT return_date FROM rental_history WHERE item_id = ? AND customer_id = ?",
-            (item.item_id, customer.customer_id)
+            (item.item_id, customer.customer_id),
         )
         row = self.db.cur.fetchone()
         self.assertIsNotNone(row)
@@ -228,7 +243,7 @@ class PublicTests(TestCase):
 
         self.db.cur.execute(
             "INSERT INTO rental (item_id, customer_id, rental_date, due_date) VALUES (?, ?, ?, ?)",
-            (item.item_id, customer.customer_id, today, original_due)
+            (item.item_id, customer.customer_id, today, original_due),
         )
         self.db.conn.commit()
 
@@ -236,7 +251,7 @@ class PublicTests(TestCase):
 
         self.db.cur.execute(
             "SELECT due_date FROM rental WHERE item_id = ? AND customer_id = ?",
-            (item.item_id, customer.customer_id)
+            (item.item_id, customer.customer_id),
         )
         new_due = str(self.db.cur.fetchone()[0])
         expected_due = (date.today() + timedelta(days=28)).isoformat()
@@ -246,12 +261,14 @@ class PublicTests(TestCase):
         item = self._insert_item()
         customer = self._insert_customer()
 
-        place = self.db.waitlist_customer(item_id=item.item_id, customer_id=customer.customer_id)
+        place = self.db.waitlist_customer(
+            item_id=item.item_id, customer_id=customer.customer_id
+        )
         self.assertEqual(1, place)
 
         self.db.cur.execute(
             "SELECT place_in_line FROM waitlist WHERE item_id = ? AND customer_id = ?",
-            (item.item_id, customer.customer_id)
+            (item.item_id, customer.customer_id),
         )
         row = self.db.cur.fetchone()
         self.assertIsNotNone(row)
@@ -264,11 +281,11 @@ class PublicTests(TestCase):
         # Insert 2 entries
         self.db.cur.execute(
             "INSERT INTO waitlist (item_id, customer_id, place_in_line) VALUES (?, ?, ?)",
-            (item.item_id, customer.customer_id, 1)
+            (item.item_id, customer.customer_id, 1),
         )
         self.db.cur.execute(
             "INSERT INTO waitlist (item_id, customer_id, place_in_line) VALUES (?, ?, ?)",
-            (item.item_id, "PLACEHOLDER_CUST", 2)  # 16 chars
+            (item.item_id, "PLACEHOLDER_CUST", 2),  # 16 chars
         )
         self.db.conn.commit()
 
@@ -285,7 +302,7 @@ class PublicTests(TestCase):
         # Remaining entry should now be at position 1
         self.db.cur.execute(
             "SELECT place_in_line FROM waitlist WHERE item_id = ? AND customer_id = ?",
-            (item.item_id, "PLACEHOLDER_CUST")
+            (item.item_id, "PLACEHOLDER_CUST"),
         )
         self.assertEqual(1, self.db.cur.fetchone()[0])
 
@@ -293,8 +310,7 @@ class PublicTests(TestCase):
         item = self._insert_item()
 
         results = self.db.get_filtered_items(
-            filter_attributes=Item(item_id=item.item_id),
-            use_patterns=False
+            filter_attributes=Item(item_id=item.item_id), use_patterns=False
         )
         self.assertEqual(1, len(results))
         self.assertEqual(item.item_id, results[0].item_id)
@@ -305,8 +321,7 @@ class PublicTests(TestCase):
         item = self._insert_item()
 
         results = self.db.get_filtered_items(
-            filter_attributes=Item(product_name="Public%Item"),
-            use_patterns=True
+            filter_attributes=Item(product_name="Public%Item"), use_patterns=True
         )
         actual_ids = [r.item_id for r in results]
         self.assertIn(item.item_id, actual_ids)
@@ -325,8 +340,7 @@ class PublicTests(TestCase):
         customer = self._insert_customer()
 
         results = self.db.get_filtered_customers(
-            filter_attributes=Customer(email="public.tester%"),
-            use_patterns=True
+            filter_attributes=Customer(email="public.tester%"), use_patterns=True
         )
         actual_ids = [r.customer_id for r in results]
         self.assertIn(customer.customer_id, actual_ids)
@@ -348,7 +362,7 @@ class PublicTests(TestCase):
         # Add to waitlist
         self.db.cur.execute(
             "INSERT INTO waitlist (item_id, customer_id, place_in_line) VALUES (?, ?, ?)",
-            (item.item_id, customer.customer_id, 1)
+            (item.item_id, customer.customer_id, 1),
         )
         self.db.conn.commit()
 
@@ -362,7 +376,7 @@ class PublicTests(TestCase):
 
         self.db.cur.execute(
             "INSERT INTO waitlist (item_id, customer_id, place_in_line) VALUES (?, ?, ?)",
-            (item.item_id, customer.customer_id, 1)
+            (item.item_id, customer.customer_id, 1),
         )
         self.db.conn.commit()
 
@@ -372,7 +386,7 @@ class PublicTests(TestCase):
         self.db.cur.execute(
             "INSERT INTO customer (c_customer_sk, c_customer_id) "
             "VALUES ((SELECT COALESCE(MAX(c_customer_sk), 0) + 1 FROM customer AS tmp), ?)",
-            (TEST_CUSTOMER_ID,)
+            (TEST_CUSTOMER_ID,),
         )
         self.db.save_changes()
         self.db.cur.close()
@@ -380,16 +394,22 @@ class PublicTests(TestCase):
         self.db = reload(db)
 
         self.db.cur.execute(
-            "SELECT c_customer_id FROM customer WHERE c_customer_id = ?", (TEST_CUSTOMER_ID,)
+            "SELECT c_customer_id FROM customer WHERE c_customer_id = ?",
+            (TEST_CUSTOMER_ID,),
         )
         result = self.db.cur.fetchone()
         self.assertEqual(TEST_CUSTOMER_ID, result[0].strip())
 
     def test_close_connection(self):
         from mariadb import connect
-        conn = connect(user=DB_CONFIG["username"], password=DB_CONFIG["password"],
-                       host=DB_CONFIG["host"], database=DB_CONFIG["database"],
-                       port=DB_CONFIG["port"])
+
+        conn = connect(
+            user=DB_CONFIG["username"],
+            password=DB_CONFIG["password"],
+            host=DB_CONFIG["host"],
+            database=DB_CONFIG["database"],
+            port=DB_CONFIG["port"],
+        )
         cur = conn.cursor()
 
         cur.execute("SHOW PROCESSLIST")
@@ -404,5 +424,5 @@ class PublicTests(TestCase):
         self.db = reload(db)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
