@@ -64,7 +64,6 @@ def add_customer(new_customer: Customer = None):
 
     cur.execute(f"SELECT MAX(c_customer_sk) FROM customer;")
     new_cust_sk = cur.fetchone()[0] + 1
-    print(new_cust_sk)
     first_name, last_name = new_customer.name.split(" ")
     insert_query = f"INSERT INTO customer(c_customer_sk, c_customer_id, c_first_name, c_last_name, c_email_address, c_current_addr_sk) VALUES({new_cust_sk}, '{new_customer.customer_id}', '{first_name}', '{last_name}', '{new_customer.email}', {address_sk})"
     cur.execute(insert_query)
@@ -265,11 +264,11 @@ def get_filtered_items(
     results = []
     for row in cur:
         found_item = Item(
-            item_id=row[1],
-            product_name=row[3],
-            brand=row[4],
-            category=row[6],
-            manufact=row[7],
+            item_id=row[1].strip(),
+            product_name=row[3].strip(),
+            brand=row[4].strip(),
+            category=row[6].strip(),
+            manufact=row[7].strip(),
             current_price=row[8],
             start_year=row[2].year,
             num_owned=row[9],
@@ -335,7 +334,12 @@ def get_filtered_customers(
 
     results = []
     for row in cur:
-        found_cust = Customer(row[1], f"{row[2]} {row[3]}", row[5], row[4])
+        found_cust = Customer(
+            row[1].strip(),
+            f"{row[2].strip()} {row[3].strip()}",
+            row[5],
+            row[4].strip(),
+        )
         results.append(found_cust)
 
     return results
@@ -410,7 +414,9 @@ def get_filtered_rentals(
 
     results = []
     for row in cur:
-        found_rental = Rental(row[0], row[1], row[2], row[3])
+        found_rental = Rental(
+            row[0].strip(), row[1].strip(), row[2].isoformat(), row[3].isoformat()
+        )
         results.append(found_rental)
 
     return results
@@ -501,7 +507,13 @@ def get_filtered_rental_histories(
 
     results = []
     for row in cur:
-        found_rental = RentalHistory(row[0], row[1], row[2], row[3], row[4])
+        found_rental = RentalHistory(
+            row[0].strip(),
+            row[1].strip(),
+            row[2].isoformat(),
+            row[3].isoformat(),
+            row[4].isoformat(),
+        )
         results.append(found_rental)
 
     return results
@@ -560,7 +572,7 @@ def get_filtered_waitlist(
 
     results = []
     for row in cur:
-        found_rental = Waitlist(row[0], row[1], row[2])
+        found_rental = Waitlist(row[0].strip(), row[1].strip(), row[2])
         results.append(found_rental)
 
     return results
