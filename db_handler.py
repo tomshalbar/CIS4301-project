@@ -16,7 +16,6 @@ conn = connect(
     port=DB_CONFIG["port"],
 )
 
-
 cur = conn.cursor()
 
 
@@ -36,9 +35,18 @@ def add_item(new_item: Item = None):
 
     new_item_rec_start_date = f"'{new_item.start_year}-01-01'"
 
-    insert_query = f"INSERT INTO item(i_item_sk, i_item_id, i_rec_start_date, i_product_name, i_brand, i_category, i_manufact, i_current_price, i_num_owned) VALUES ({new_item_sk}, {new_item.item_id}, {new_item_rec_start_date}, {new_item.product_name}, {new_item.brand}, {new_item.category}, {new_item.manufact}, {new_item.current_price}, {new_item.num_owned})"
+    insert_query = f"INSERT INTO item(i_item_sk, i_item_id, i_rec_start_date, i_product_name, i_brand, i_category, i_manufact, i_current_price, i_num_owned) VALUES ({new_item_sk}, '{new_item.item_id}', {new_item_rec_start_date}, '{new_item.product_name}', '{new_item.brand}', '{new_item.category}', '{new_item.manufact}', {new_item.current_price}, {new_item.num_owned})"
 
     cur.execute(insert_query)
+
+
+def parse_address(address: str):
+    components = address.split(",")
+    street_number, street_name = components[0].split(" ", 1)
+    city = components[1].strip()
+    state, zipcode = components[2].strip().split(" ")
+
+    return street_number, street_name, city, state, zipcode
 
 
 def add_customer(new_customer: Customer = None):
@@ -46,7 +54,20 @@ def add_customer(new_customer: Customer = None):
     new_customer - A Customer object containing a new customer to be inserted into the DB in the customer table.
         new_customer and its attributes will never be None.
     """
-    raise NotImplementedError("you must implement this function")
+
+    cur.execute(f"SELECT MAX(ca_address_sk) FROM customer_address;")
+    address_sk = cur.fetchone()[0] + 1
+    address_parts = parse_address(new_customer.address)
+    cur.execute(
+        f"INSERT INTO customer_address(ca_address_sk, ca_street_number, ca_street_name, ca_city, ca_state, ca_zip) VALUES ({address_sk}, {address_parts[0]}, '{address_parts[1]}', '{address_parts[2]}', '{address_parts[3]}', {address_parts[4]})"
+    )
+
+    cur.execute(f"SELECT MAX(c_customer_sk) FROM customer;")
+    new_cust_sk = cur.fetchone()[0] + 1
+    print(new_cust_sk)
+    first_name, last_name = new_customer.name.split(" ")
+    insert_query = f"INSERT INTO customer(c_customer_sk, c_customer_id, c_first_name, c_last_name, c_email_address, c_current_addr_sk) VALUES({new_cust_sk}, '{new_customer.customer_id}', '{first_name}', '{last_name}', '{new_customer.email}', {address_sk})"
+    cur.execute(insert_query)
 
 
 def edit_customer(original_customer_id: str = None, new_customer: Customer = None):
@@ -54,7 +75,29 @@ def edit_customer(original_customer_id: str = None, new_customer: Customer = Non
     original_customer_id - A string containing the customer id for the customer to be edited.
     new_customer - A Customer object containing attributes to update. If an attribute is None, it should not be altered.
     """
-    raise NotImplementedError("you must implement this function")
+
+    if new_customer.email is not None:
+        cur.execute(
+            f"UPDATE Customer SET c_email_address='{new_customer.email}' WHERE c_customer_id='{original_customer_id}'"
+        )
+    if new_customer.name is not None:
+        first_name, last_name = new_customer.name.split(" ")
+        cur.execute(
+            f"UPDATE Customer SET c_first_name='{first_name}', c_last_name='{last_name}' WHERE c_customer_id='{original_customer_id}'"
+        )
+    if new_customer.address is not None:
+        cur.execute(
+            f"SELECT c_current_addr_sk FROM Customer WHERE c_customer_id='{original_customer_id}'"
+        )
+        add_sk = cur.fetchone()[0]
+        address_parts = parse_address(new_customer.address)
+        cur.execute(
+            f"UPDATE customer_address SET ca_street_number={address_parts[0]}, ca_street_name='{address_parts[1]}', ca_city='{address_parts[2]}', ca_state='{address_parts[3]}', ca_zip={address_parts[4]} WHERE ca_address_sk='{add_sk}'"
+        )
+    if new_customer.customer_id is not None:
+        cur.execute(
+            f"UPDATE Customer SET c_customer_id='{new_customer.customer_id}' WHERE c_customer_id='{original_customer_id}'"
+        )
 
 
 def rent_item(item_id: str = None, customer_id: str = None):
@@ -62,35 +105,59 @@ def rent_item(item_id: str = None, customer_id: str = None):
     item_id - A string containing the Item ID for the item being rented.
     customer_id - A string containing the customer id of the customer renting the item.
     """
-    raise NotImplementedError("you must implement this function")
+    rental_date = date.today().isoformat()
+    due_date = (date.today() + timedelta(days=14)).isoformat()
+    cur.execute(
+        f"INSERT INTO rental(item_id, customer_id, rental_date, due_date) VALUES ('{item_id}', '{customer_id}', '{rental_date}', '{due_date}')"
+    )
 
 
 def waitlist_customer(item_id: str = None, customer_id: str = None) -> int:
     """
     Returns the customer's new place in line.
     """
-    raise NotImplementedError("you must implement this function")
+    place = line_length(item_id) + 1
+    cur.execute(
+        f"INSERT INTO waitlist(item_id, customer_id, place_in_line) VALUES ('{item_id}', '{customer_id}', {place})"
+    )
+    return place
 
 
 def update_waitlist(item_id: str = None):
     """
     Removes person at position 1 and shifts everyone else down by 1.
     """
-    raise NotImplementedError("you must implement this function")
+    cur.execute(f"DELETE FROM waitlist WHERE item_id='{item_id}' AND place_in_line=1")
+
+    cur.execute(
+        f"UPDATE waitlist SET place_in_line = place_in_line - 1 WHERE item_id='{item_id}'"
+    )
 
 
 def return_item(item_id: str = None, customer_id: str = None):
     """
     Moves a rental from rental to rental_history with return_date = today.
     """
-    raise NotImplementedError("you must implement this function")
+    cur.execute(
+        f"SELECT * FROM rental WHERE item_id='{item_id}' AND customer_id='{customer_id}'"
+    )
+    rental_data = cur.fetchone()
+    todays_date = date.today().isoformat()
+    cur.execute(
+        f"INSERT INTO rental_history(item_id, customer_id, rental_date, due_date, return_date) VALUES ('{rental_data[0]}', '{rental_data[1]}', '{rental_data[2].isoformat()}', '{rental_data[3].isoformat()}', '{todays_date}')"
+    )
+    cur.execute(
+        f"DELETE FROM rental WHERE item_id='{item_id}' AND customer_id='{customer_id}'"
+    )
 
 
 def grant_extension(item_id: str = None, customer_id: str = None):
     """
     Adds 14 days to the due_date.
     """
-    raise NotImplementedError("you must implement this function")
+    cur.execute(
+        f"UPDATE rental SET due_date=due_date + INTERVAL 14 DAY WHERE item_id='{item_id}' AND customer_id='{customer_id}'"
+    )
 
 
 def get_filtered_items(
@@ -479,14 +546,14 @@ def get_filtered_waitlist(
             where_clause = where_clause + f" place_in_line >= '{min_place_in_line}'"
             where_clause_used = True
         else:
-            where_clause = where_clause + f" AND return_date >= '{min_place_in_line}'"
+            where_clause = where_clause + f" AND place_in_line >= '{min_place_in_line}'"
 
     if max_place_in_line > 0:
         if where_clause_used == False:
             where_clause = where_clause + f" place_in_line <= '{max_place_in_line}'"
             where_clause_used = True
         else:
-            where_clause = where_clause + f" AND return_date <= '{max_place_in_line}'"
+            where_clause = where_clause + f" AND place_in_line <= '{max_place_in_line}'"
 
     query = f"SELECT * FROM waitlist {where_clause};"
     cur.execute(query)
@@ -506,16 +573,17 @@ def number_in_stock(item_id: str = None) -> int:
 
     num_owned_query = f"SELECT i_num_owned FROM item WHERE i_item_id = '{item_id}'"
     cur.execute(num_owned_query)
-    n_owned = cur.fetchone()[0]
+    row = cur.fetchone()
+    if row is None or row[0] is None:
+        return -1
+
+    n_owned = row[0]
 
     num_rent_query = f"SELECT count(*) FROM rental WHERE item_id = '{item_id}'"
     cur.execute(num_rent_query)
     n_rented = cur.fetchone()[0]
 
     return n_owned - n_rented
-
-
-print(number_in_stock("AAAAAAAABAAAAAAA"))
 
 
 def place_in_line(item_id: str = None, customer_id: str = None) -> int:
@@ -541,7 +609,8 @@ def place_in_line(item_id: str = None, customer_id: str = None) -> int:
 
     query = f"SELECT place_in_line FROM waitlist {where_clause};"
     cur.execute(query)
-    return cur.fetchone()[0]
+    result = cur.fetchone()
+    return result[0] if result and result[0] is not None else -1
 
 
 def line_length(item_id: str = None) -> int:
